@@ -6,6 +6,7 @@
 import { ChildProcessWithoutNullStreams } from "child_process";
 import { getMainWindow } from "../main-window";
 import logit from "./logit";
+import { CustomModel } from "../../common/types/types";
 
 /**
  * The saved image path so that the select image dialog can open to the last used path.
@@ -34,6 +35,17 @@ export let savedCustomModelsPath: string | undefined = undefined;
 export function setSavedCustomModelsPath(value: string | undefined): void {
   savedCustomModelsPath = value;
   logit("📁 Updating Custom Models Folder Path: ", savedCustomModelsPath);
+}
+
+/**
+ * The saved list of detected custom models with their metadata.
+ */
+export let savedCustomModels: CustomModel[] = [];
+export function setSavedCustomModels(value: CustomModel[]): void {
+  savedCustomModels = value;
+}
+export function getCustomModelById(id: string): CustomModel | undefined {
+  return savedCustomModels.find((m) => m.id === id);
 }
 
 /**

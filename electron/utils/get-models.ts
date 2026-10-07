@@ -1,21 +1,21 @@
 import fs from "fs";
+import path from "path";
 import logit from "./logit";
 import { MessageBoxOptions, app, dialog } from "electron";
 import settings from "electron-settings";
 import { FEATURE_FLAGS } from "../../common/feature-flags";
+import { CustomModel } from "../../common/types/types";
+import { setSavedCustomModels } from "./config-variables";
 
-const getModels = async (folderPath: string | undefined) => {
-  let models: string[] = [];
-  let isValid = false;
+const getModels = async (
+  folderPath: string | undefined,
+): Promise<CustomModel[] | null> => {
+  let models: CustomModel[] = [];
 
-  // SECURITY SCOPED BOOKMARKS
+  // SECURITY SCOPED BOOKMARKS (macOS App Store)
   let closeAccess;
   const customModelsBookmarks = await settings.get("custom-models-bookmarks");
   if (FEATURE_FLAGS.APP_STORE_BUILD && customModelsBookmarks) {
-    console.log(
-      "🚀 => file: get-models.ts:18 => customModelsBookmarks:",
-      customModelsBookmarks,
-    );
     try {
       closeAccess = app.startAccessingSecurityScopedResource(
         customModelsBookmarks as string,
@@ -25,50 +25,134 @@ const getModels = async (folderPath: string | undefined) => {
     }
   }
 
-  if (!folderPath) {
+  if (!folderPath || !fs.existsSync(folderPath)) {
     logit("❌ Invalid Custom Model Folder Detected");
     const options: MessageBoxOptions = {
       type: "error",
       title: "Invalid Folder",
-      message:
-        "The selected folder does not contain valid model files. Make sure you select the folder that ONLY contains '.param' and '.bin' files.",
+      message: "The selected folder does not exist or is invalid.",
       buttons: ["OK"],
     };
     dialog.showMessageBoxSync(options);
     return null;
   }
 
-  // READ CUSTOM MODELS FOLDER
-  fs.readdirSync(folderPath).forEach((file) => {
-    // log.log("Files in Folder: ", file);
-    if (
-      file.endsWith(".param") ||
-      file.endsWith(".PARAM") ||
-      file.endsWith(".bin") ||
-      file.endsWith(".BIN")
-    ) {
-      isValid = true;
-      const modelName = file.substring(0, file.lastIndexOf(".")) || file;
-      if (!models.includes(modelName)) {
-        models.push(modelName);
+  try {
+    const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      const subDirPath = path.join(folderPath, entry.name);
+      try {
+        const subFiles = fs.readdirSync(subDirPath);
+
+        // 1 sola pasada en memoria O(N) para clasificar archivos
+        let paramFile = "";
+        let binFile = "";
+        let hasJson = false;
+        let autoBefore = "";
+        let autoAfter = "";
+        let autoPreview = "";
+
+        for (const file of subFiles) {
+          const lower = file.toLowerCase();
+          if (lower.endsWith(".param")) paramFile = file;
+          else if (lower.endsWith(".bin")) binFile = file;
+          else if (lower === "model.json") hasJson = true;
+          else if (/\.(png|jpg|jpeg|webp)$/i.test(lower)) {
+            if (lower.startsWith("before.")) autoBefore = file;
+            else if (lower.startsWith("after.")) autoAfter = file;
+            else if (lower.startsWith("preview.")) autoPreview = file;
+          }
+        }
+
+        // Descarta carpetas que no tengan el binario y parámetros requeridos
+        if (!paramFile || !binFile) continue;
+
+        const modelFileName =
+          paramFile.substring(0, paramFile.lastIndexOf(".")) || paramFile;
+        let name = entry.name;
+        let description = "";
+        let preview: string | undefined;
+        let before: string | undefined;
+        let after: string | undefined;
+
+        if (hasJson) {
+          try {
+            const rawJson = fs.readFileSync(
+              path.join(subDirPath, "model.json"),
+              "utf-8",
+            );
+            const parsed = JSON.parse(rawJson);
+            if (parsed.name && typeof parsed.name === "string") {
+              name = parsed.name;
+            }
+            if (
+              parsed.description &&
+              typeof parsed.description === "string"
+            ) {
+              description = parsed.description;
+            }
+
+            // Resolución en memoria sin accesos extra a disco
+            const resolveImg = (f?: string) =>
+              f && subFiles.includes(path.basename(f))
+                ? path.join(subDirPath, path.basename(f))
+                : undefined;
+
+            preview = resolveImg(parsed.preview);
+            before = resolveImg(parsed.before);
+            after = resolveImg(parsed.after);
+          } catch (err) {
+            logit("⚠️ Error reading model.json in: " + subDirPath, err);
+          }
+        } else {
+          // Fallback automático con los archivos detectados en la pasada inicial
+          if (autoBefore && autoAfter) {
+            before = path.join(subDirPath, autoBefore);
+            after = path.join(subDirPath, autoAfter);
+          } else if (autoPreview) {
+            preview = path.join(subDirPath, autoPreview);
+          }
+        }
+
+        models.push({
+          id: entry.name,
+          name,
+          description,
+          modelFileName,
+          folderPath: subDirPath,
+          preview,
+          before,
+          after,
+        });
+      } catch (subErr) {
+        logit("⚠️ Error reading directory: " + subDirPath, subErr);
       }
     }
-  });
+  } catch (err) {
+    logit("❌ Error reading custom models folder: ", err);
+  }
 
-  if (!isValid) {
+  if (models.length === 0) {
     logit("❌ Invalid Custom Model Folder Detected");
     const options: MessageBoxOptions = {
       type: "error",
       title: "Invalid Folder",
       message:
-        "The selected folder does not contain valid model files. Make sure you select the folder that ONLY contains '.param' and '.bin' files.",
+        "The selected folder does not contain valid model files. Make sure each model is placed in its own folder with '.param' and '.bin' files.",
       buttons: ["OK"],
     };
     dialog.showMessageBoxSync(options);
     return null;
   }
 
-  logit("🔎 Detected Custom Models: ", models);
+  setSavedCustomModels(models);
+  logit(
+    "🔎 Detected Custom Models: ",
+    models.map((m) => m.name),
+  );
   return models;
 };
 

@@ -2,7 +2,6 @@ import { parse } from "path";
 import { getMainWindow } from "../main-window";
 import {
   childProcesses,
-  savedCustomModelsPath,
   setStopped,
   stopped,
 } from "../utils/config-variables";
@@ -12,7 +11,7 @@ import {
   getDoubleUpscaleArguments,
   getDoubleUpscaleSecondPassArguments,
 } from "../utils/get-arguments";
-import { modelsPath } from "../utils/get-resource-paths";
+import { resolveModel } from "../utils/resolve-model";
 import logit from "../utils/logit";
 import { ELECTRON_COMMANDS } from "../../common/electron-commands";
 import { DoubleUpscaylPayload } from "../../common/types/types";
@@ -21,7 +20,6 @@ import showNotification from "../utils/show-notification";
 import getFilenameFromPath from "../../common/get-file-name";
 import decodePath from "../../common/decode-path";
 import getDirectoryFromPath from "../../common/get-directory-from-path";
-import { MODELS } from "../../common/models-list";
 import { copyMetadata } from "../utils/copy-metadata";
 
 const doubleUpscayl = async (event, payload: DoubleUpscaylPayload) => {
@@ -43,7 +41,7 @@ const doubleUpscayl = async (event, payload: DoubleUpscaylPayload) => {
   const fullfileName = getFilenameFromPath(imagePath);
   const fileName = parse(fullfileName).name;
 
-  const isDefaultModel = model in MODELS;
+  const { targetModelsPath, targetModelName } = resolveModel(model);
 
   // COPY IMAGE TO TMP FOLDER
 
@@ -53,7 +51,7 @@ const doubleUpscayl = async (event, payload: DoubleUpscaylPayload) => {
     fileName +
     "_upscayl_" +
     (useCustomWidth ? `${customWidth}px_` : `${scale}x_`) +
-    model +
+    targetModelName +
     "." +
     saveImageAs;
 
@@ -63,10 +61,8 @@ const doubleUpscayl = async (event, payload: DoubleUpscaylPayload) => {
       inputDir,
       fullfileName: decodeURIComponent(fullfileName),
       outFile,
-      modelsPath: isDefaultModel
-        ? modelsPath
-        : (savedCustomModelsPath ?? modelsPath),
-      model,
+      modelsPath: targetModelsPath,
+      model: targetModelName,
       scale,
       customWidth,
       gpuId,
@@ -199,10 +195,8 @@ const doubleUpscayl = async (event, payload: DoubleUpscaylPayload) => {
       upscayl2 = spawnUpscayl(
         getDoubleUpscaleSecondPassArguments({
           outFile,
-          modelsPath: isDefaultModel
-            ? modelsPath
-            : (savedCustomModelsPath ?? modelsPath),
-          model,
+          modelsPath: targetModelsPath,
+          model: targetModelName,
           gpuId,
           saveImageAs,
           scale,

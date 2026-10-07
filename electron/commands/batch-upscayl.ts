@@ -2,7 +2,6 @@ import fs from "fs";
 import { getMainWindow } from "../main-window";
 import {
   childProcesses,
-  savedCustomModelsPath,
   setStopped,
   stopped,
 } from "../utils/config-variables";
@@ -10,11 +9,10 @@ import logit from "../utils/logit";
 import { spawnUpscayl } from "../utils/spawn-upscayl";
 import { getBatchArguments } from "../utils/get-arguments";
 import slash from "../utils/slash";
-import { modelsPath } from "../utils/get-resource-paths";
+import { resolveModel } from "../utils/resolve-model";
 import { ELECTRON_COMMANDS } from "../../common/electron-commands";
 import { BatchUpscaylPayload } from "../../common/types/types";
 import showNotification from "../utils/show-notification";
-import { MODELS } from "../../common/models-list";
 import { copyMetadata } from "../utils/copy-metadata";
 
 const batchUpscayl = async (event, payload: BatchUpscaylPayload) => {
@@ -30,11 +28,14 @@ const batchUpscayl = async (event, payload: BatchUpscaylPayload) => {
   const model = payload.model;
   const gpuId = payload.gpuId;
   const saveImageAs = payload.saveImageAs;
+
+  const { targetModelsPath, targetModelName } = resolveModel(model);
+
   // GET THE IMAGE DIRECTORY
   let inputDir = decodeURIComponent(payload.batchFolderPath);
   // GET THE OUTPUT DIRECTORY
   let outputFolderPath = decodeURIComponent(payload.outputPath);
-  const outputFolderName = `upscayl_${saveImageAs}_${model}_${
+  const outputFolderName = `upscayl_${saveImageAs}_${targetModelName}_${
     useCustomWidth ? `${customWidth}px` : `${scale}x`
   }`;
   outputFolderPath += slash + outputFolderName;
@@ -43,17 +44,13 @@ const batchUpscayl = async (event, payload: BatchUpscaylPayload) => {
     fs.mkdirSync(outputFolderPath, { recursive: true });
   }
 
-  const isDefaultModel = model in MODELS;
-
   // UPSCALE
   const upscayl = spawnUpscayl(
     getBatchArguments({
       inputDir,
       outputDir: outputFolderPath,
-      modelsPath: isDefaultModel
-        ? modelsPath
-        : (savedCustomModelsPath ?? modelsPath),
-      model,
+      modelsPath: targetModelsPath,
+      model: targetModelName,
       gpuId,
       saveImageAs,
       scale,

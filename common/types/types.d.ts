@@ -51,3 +51,24 @@ export type BatchUpscaylPayload = {
   ttaMode: boolean;
   copyMetadata: boolean;
 };
+
+export type CustomModel = {
+  id: string;
+  name: string;
+  description: string;
+  modelFileName: string;
+  folderPath: string;
+  preview?: string;
+  before?: string;
+  after?: string;
+};
+
+export type SaveCustomModelPayload = {
+  folderPath: string;
+  name: string;
+  description: string;
+  previewMode?: "single" | "comparison";
+  previewPath?: string;
+  beforePath?: string;
+  afterPath?: string;
+};

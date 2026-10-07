@@ -1,8 +1,6 @@
 import fs from "fs";
-import { modelsPath } from "../utils/get-resource-paths";
-import { ELECTRON_COMMANDS } from "../../common/electron-commands";
+import { resolveModel } from "../utils/resolve-model";
 import {
-  savedCustomModelsPath,
   setChildProcesses,
   setStopped,
   stopped,
@@ -19,7 +17,7 @@ import showNotification from "../utils/show-notification";
 import getFilenameFromPath from "../../common/get-file-name";
 import decodePath from "../../common/decode-path";
 import getDirectoryFromPath from "../../common/get-directory-from-path";
-import { MODELS } from "../../common/models-list";
+import { ELECTRON_COMMANDS } from "../../common/electron-commands";
 import { getPlatform } from "../utils/get-device-specs";
 import { copyMetadata } from "../utils/copy-metadata";
 
@@ -48,17 +46,17 @@ const imageUpscayl = async (event, payload: ImageUpscaylPayload) => {
   const fileNameWithExt = getFilenameFromPath(imagePath);
   const fileName = parse(fileNameWithExt).name;
 
+  const { targetModelsPath, targetModelName } = resolveModel(model);
+
   const outFile =
     outputDir +
     slash +
     fileName +
     "_upscayl_" +
     (useCustomWidth ? `${customWidth}px_` : `${scale}x_`) +
-    model +
+    targetModelName +
     "." +
     saveImageAs;
-
-  const isDefaultModel = model in MODELS;
 
   // Check if filename is too long
   if (outFile.length >= 255) {
@@ -105,10 +103,8 @@ const imageUpscayl = async (event, payload: ImageUpscaylPayload) => {
         inputDir: decodeURIComponent(inputDir),
         fileNameWithExt: decodeURIComponent(fileNameWithExt),
         outFile,
-        modelsPath: isDefaultModel
-          ? modelsPath
-          : (savedCustomModelsPath ?? modelsPath),
-        model,
+        modelsPath: targetModelsPath,
+        model: targetModelName,
         scale,
         gpuId,
         saveImageAs,
