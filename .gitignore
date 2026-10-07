@@ -1,5 +1,12 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Test Models
+models/test_model*/*.json
+models/test_model*/*.jpg
+models/test_model*/*.jpeg
+models/test_model*/*.png
+models/test_model*/*.webp
+
 # dependencies
 /node_modules
 /.pnp
