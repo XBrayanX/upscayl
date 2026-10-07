@@ -162,7 +162,16 @@ const MainContent = ({
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+  const handlePaste = (e: any) => {
+    const target = e.target as HTMLElement;
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
     e.preventDefault();
     if (outputPath) {
       resetImagePaths();
