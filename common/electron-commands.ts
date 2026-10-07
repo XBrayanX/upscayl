@@ -30,6 +30,8 @@ const ELECTRON_COMMANDS = {
   PASTE_IMAGE: "Paste Image from clipboard",
   PASTE_IMAGE_SAVE_SUCCESS: "Clipboard Image saved successfully",
   PASTE_IMAGE_SAVE_ERROR: "Clipboard Image save failed",
+  SAVE_CUSTOM_MODEL_INFO: "Save custom model info",
+  SELECT_MODEL_PREVIEW_IMAGE: "Select model preview image",
 } as const;
 
 export { ELECTRON_COMMANDS };

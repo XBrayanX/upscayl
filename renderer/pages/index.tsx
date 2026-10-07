@@ -2,7 +2,10 @@
 import { useState, useEffect } from "react";
 import { ELECTRON_COMMANDS } from "@common/electron-commands";
 import { useAtomValue, useSetAtom } from "jotai";
-import { customModelIdsAtom } from "../atoms/models-list-atom";
+import {
+  customModelIdsAtom,
+  customModelsAtom,
+} from "../atoms/models-list-atom";
 import {
   batchModeAtom,
   savedOutputPathAtom,
@@ -47,6 +50,7 @@ const Home = () => {
   const setProgress = useSetAtom(progressAtom);
   const [doubleUpscaylCounter, setDoubleUpscaylCounter] = useState(0);
   const setModelIds = useSetAtom(customModelIdsAtom);
+  const setCustomModels = useSetAtom(customModelsAtom);
   const setUserStats = useSetAtom(userStatsAtom);
 
   const selectImageHandler = async () => {
@@ -293,10 +297,15 @@ const Home = () => {
     // CUSTOM FOLDER LISTENER
     window.electron.on(
       ELECTRON_COMMANDS.CUSTOM_MODEL_FILES_LIST,
-      (_, data: string[]) => {
+      (_, data: any) => {
         logit(`📜 CUSTOM_MODEL_FILES_LIST: `, data);
         console.log("🚀 => data:", data);
-        setModelIds(data);
+        if (Array.isArray(data)) {
+          setCustomModels(data);
+          setModelIds(
+            data.map((m: any) => (typeof m === "string" ? m : m.id)),
+          );
+        }
       },
     );
   }, []);

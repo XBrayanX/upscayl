@@ -20,6 +20,8 @@ import autoUpdate from "./commands/auto-update";
 import { FEATURE_FLAGS } from "../common/feature-flags";
 import settings from "electron-settings";
 import pasteImage from "./commands/paste-image";
+import saveCustomModel from "./commands/save-custom-model";
+import selectModelPreviewImage from "./commands/select-model-preview-image";
 import path from "path";
 
 // INITIALIZATION
@@ -94,6 +96,16 @@ ipcMain.on(ELECTRON_COMMANDS.GET_MODELS_LIST, getModelsList);
 ipcMain.handle(
   ELECTRON_COMMANDS.SELECT_CUSTOM_MODEL_FOLDER,
   customModelsSelect,
+);
+
+ipcMain.handle(
+  ELECTRON_COMMANDS.SAVE_CUSTOM_MODEL_INFO,
+  saveCustomModel,
+);
+
+ipcMain.handle(
+  ELECTRON_COMMANDS.SELECT_MODEL_PREVIEW_IMAGE,
+  selectModelPreviewImage,
 );
 
 ipcMain.on(ELECTRON_COMMANDS.UPSCAYL, imageUpscayl);
