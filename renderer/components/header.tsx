@@ -18,10 +18,13 @@ export default function Header({ version }: { version: string }) {
       <div className="flex items-center gap-3 px-5 py-5">
         <UpscaylSVGLogo className="inline-block h-14 w-14" />
         <div className="flex flex-col justify-center">
-          <h1 className="text-3xl font-bold">
-            {t("TITLE")}{" "}
-            <span className="text-xs">
+          <h1 className="flex flex-wrap items-center gap-2 text-3xl font-bold">
+            <span>{t("TITLE")}</span>
+            <span className="text-xs font-normal text-base-content/60">
               {version} {FEATURE_FLAGS.APP_STORE_BUILD && "Mac"}
+            </span>
+            <span className="badge badge-primary badge-sm font-medium">
+              Custom Models
             </span>
           </h1>
           <p className="">{t("HEADER.DESCRIPTION")}</p>
