@@ -1,11 +1,13 @@
 import fs from "fs";
 import path from "path";
 import logit from "./logit";
-import { MessageBoxOptions, app, dialog } from "electron";
+import { app } from "electron";
 import settings from "electron-settings";
 import { FEATURE_FLAGS } from "../../common/feature-flags";
 import { CustomModel } from "../../common/types/types";
 import { setSavedCustomModels } from "./config-variables";
+import { getMainWindow } from "../main-window";
+import { ELECTRON_COMMANDS } from "../../common/electron-commands";
 
 const getModels = async (
   folderPath: string | undefined,
@@ -27,13 +29,13 @@ const getModels = async (
 
   if (!folderPath || !fs.existsSync(folderPath)) {
     logit("❌ Invalid Custom Model Folder Detected");
-    const options: MessageBoxOptions = {
-      type: "error",
-      title: "Invalid Folder",
-      message: "The selected folder does not exist or is invalid.",
-      buttons: ["OK"],
-    };
-    dialog.showMessageBoxSync(options);
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send(
+        ELECTRON_COMMANDS.UPSCAYL_WARNING,
+        "The selected folder does not exist or is invalid.",
+      );
+    }
     return null;
   }
 
@@ -137,14 +139,13 @@ const getModels = async (
 
   if (models.length === 0) {
     logit("❌ Invalid Custom Model Folder Detected");
-    const options: MessageBoxOptions = {
-      type: "error",
-      title: "Invalid Folder",
-      message:
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.send(
+        ELECTRON_COMMANDS.UPSCAYL_WARNING,
         "The selected folder does not contain valid model files. Make sure each model is placed in its own folder with '.param' and '.bin' files.",
-      buttons: ["OK"],
-    };
-    dialog.showMessageBoxSync(options);
+      );
+    }
     return null;
   }
 
