@@ -320,6 +320,56 @@ const Home = () => {
     if (systemInfo) logit("💻 System Info:", JSON.stringify(systemInfo));
   }, [systemInfo]);
 
+  // GLOBAL DRAG AND DROP PREVENT DEFAULTS
+  useEffect(() => {
+    const preventDragDefaults = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", preventDragDefaults);
+    window.addEventListener("drop", preventDragDefaults);
+    return () => {
+      window.removeEventListener("dragover", preventDragDefaults);
+      window.removeEventListener("drop", preventDragDefaults);
+    };
+  }, []);
+
+  const handleWindowDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!e.dataTransfer || e.dataTransfer.files.length === 0) return;
+    const file = e.dataTransfer.files[0];
+    const filePath =
+      window.electron &&
+      typeof (window.electron as any).getPathForFile === "function"
+        ? (window.electron as any).getPathForFile(file)
+        : (file as any)?.path;
+    const extension = file.name.split(".").at(-1)?.toLowerCase() || "";
+    const type = file.type || e.dataTransfer.items?.[0]?.type || "";
+
+    const isValidImage =
+      type.includes("image") ||
+      VALID_IMAGE_FORMATS.includes(extension as ImageFormat);
+
+    if (!filePath || !isValidImage) {
+      toast({
+        title: t("ERRORS.INVALID_IMAGE_ERROR.TITLE"),
+        description: t("ERRORS.INVALID_IMAGE_ERROR.ADDITIONAL_DESCRIPTION"),
+      });
+      return;
+    }
+
+    resetImagePaths();
+    logit("🖼 Setting image path: ", filePath);
+    setImagePath(filePath);
+    const dirname = getDirectoryFromPath(filePath);
+    logit("🗂 Setting output path: ", dirname);
+    if (!FEATURE_FLAGS.APP_STORE_BUILD) {
+      if (!rememberOutputFolder) {
+        setOutputPath(dirname);
+      }
+    }
+    validateImagePath(filePath);
+  };
+
   // HANDLERS
   const resetImagePaths = () => {
     logit("🔄 Resetting image paths");
@@ -344,6 +394,8 @@ const Home = () => {
     <div
       className="flex h-screen w-screen flex-row overflow-hidden bg-base-300"
       onPaste={(e) => console.log(e)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleWindowDrop}
     >
       <Sidebar
         imagePath={imagePath}

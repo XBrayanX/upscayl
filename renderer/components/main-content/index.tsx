@@ -121,11 +121,11 @@ const MainContent = ({
     [imagePath],
   );
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: any) => {
     e.preventDefault();
     resetImagePaths();
     if (
-      e.dataTransfer.items.length === 0 ||
+      !e.dataTransfer ||
       e.dataTransfer.files.length === 0
     ) {
       logit("👎 No valid files dropped");
@@ -135,14 +135,22 @@ const MainContent = ({
       });
       return;
     }
-    const type = e.dataTransfer.items[0].type;
-    const filePath = e.dataTransfer.files[0].path;
-    const extension = e.dataTransfer.files[0].name.split(".").at(-1);
+    const file = e.dataTransfer.files[0];
+    const type = file.type || e.dataTransfer.items?.[0]?.type || "";
+    const filePath =
+      window.electron &&
+      typeof (window.electron as any).getPathForFile === "function"
+        ? (window.electron as any).getPathForFile(file)
+        : (file as any)?.path;
+    const extension = file.name.split(".").at(-1)?.toLowerCase() || "";
+
     logit("⤵️ Dropped file: ", JSON.stringify({ type, filePath, extension }));
-    if (
-      !type.includes("image") ||
-      !VALID_IMAGE_FORMATS.includes(extension.toLowerCase())
-    ) {
+
+    const isValidImage =
+      type.includes("image") ||
+      VALID_IMAGE_FORMATS.includes(extension as ImageFormat);
+
+    if (!filePath || !isValidImage) {
       logit("🚫 Invalid file dropped");
       toast({
         title: t("ERRORS.INVALID_IMAGE_ERROR.TITLE"),

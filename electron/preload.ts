@@ -1,4 +1,4 @@
-import { ipcRenderer, contextBridge } from "electron";
+import { ipcRenderer, contextBridge, webUtils } from "electron";
 import {
   getAppVersion,
   getDeviceSpecs,
@@ -17,4 +17,11 @@ contextBridge.exposeInMainWorld("electron", {
   platform: getPlatform(),
   getSystemInfo: async () => await getDeviceSpecs(),
   getAppVersion: async () => await getAppVersion(),
+  getPathForFile: (file: File) => {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch {
+      return "";
+    }
+  },
 });
