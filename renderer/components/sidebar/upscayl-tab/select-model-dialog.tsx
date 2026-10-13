@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Eye,
+  EyeOff,
   ImageIcon,
   Maximize2,
   Pencil,
@@ -20,7 +22,10 @@ import {
 } from "lucide-react";
 import { ModelId, MODELS } from "@common/models-list";
 import { useAtom, useAtomValue } from "jotai";
-import { selectedModelIdAtom } from "@/atoms/user-settings-atom";
+import {
+  hiddenModelIdsAtom,
+  selectedModelIdAtom,
+} from "@/atoms/user-settings-atom";
 import { customModelsAtom } from "@/atoms/models-list-atom";
 import useTranslation from "@/components/hooks/use-translation";
 import posthog from "posthog-js";
@@ -32,6 +37,8 @@ import { ELECTRON_COMMANDS } from "@common/electron-commands";
 const SelectModelDialog = () => {
   const t = useTranslation();
   const [selectedModelId, setSelectedModelId] = useAtom(selectedModelIdAtom);
+  const [hiddenModelIds, setHiddenModelIds] = useAtom(hiddenModelIdsAtom);
+  const [showHidden, setShowHidden] = useState(false);
 
   const customModels = useAtomValue(customModelsAtom);
   const [open, setOpen] = useState(false);
@@ -42,6 +49,14 @@ const SelectModelDialog = () => {
     preview?: string;
   } | null>(null);
   const [editingModel, setEditingModel] = useState<CustomModel | null>(null);
+
+  const toggleHideModel = (modelId: string) => {
+    setHiddenModelIds((prev) =>
+      prev.includes(modelId)
+        ? prev.filter((id) => id !== modelId)
+        : [...prev, modelId],
+    );
+  };
 
   const handleRefreshModels = () => {
     setIsRefreshing(true);
@@ -85,6 +100,13 @@ const SelectModelDialog = () => {
     (m) => m.id === selectedModelId,
   );
 
+  const visibleDefaultModels = Object.entries(MODELS).filter(
+    ([id]) => showHidden || !hiddenModelIds.includes(id),
+  );
+  const visibleCustomModels = customModels.filter(
+    (m) => showHidden || !hiddenModelIds.includes(m.id),
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <Dialog open={open} onOpenChange={setOpen}>
@@ -101,37 +123,99 @@ const SelectModelDialog = () => {
         <DialogContent className="z-50 sm:max-w-lg">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pr-6">
             <DialogTitle>{t("APP.MODEL_SELECTION.DESCRIPTION")}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 px-2 text-xs text-base-content/70 hover:text-base-content"
-              title="Actualizar lista de modelos"
-              onClick={handleRefreshModels}
-              disabled={isRefreshing}
-            >
-              <RotateCw
-                className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              <span>Actualizar</span>
-            </Button>
+            <div className="flex items-center gap-1">
+              {hiddenModelIds.length > 0 && (
+                <Button
+                  variant={showHidden ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 gap-1.5 px-2 text-xs text-base-content/70 hover:text-base-content"
+                  title={
+                    showHidden
+                      ? "Ocultar modelos deshabilitados"
+                      : "Ver modelos ocultos"
+                  }
+                  onClick={() => setShowHidden(!showHidden)}
+                >
+                  {showHidden ? (
+                    <Eye className="h-3.5 w-3.5" />
+                  ) : (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  )}
+                  <span>
+                    {showHidden
+                      ? "Ocultando"
+                      : `Ocultos (${hiddenModelIds.length})`}
+                  </span>
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2 text-xs text-base-content/70 hover:text-base-content"
+                title="Actualizar lista de modelos"
+                onClick={handleRefreshModels}
+                disabled={isRefreshing}
+              >
+                <RotateCw
+                  className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                <span>Actualizar</span>
+              </Button>
+            </div>
           </DialogHeader>
           <ScrollArea className="max-h-[600px] pr-4">
             <div className="flex flex-col gap-4">
-              {Object.entries(MODELS).map((modelData) => {
+              {visibleDefaultModels.map((modelData) => {
                 const modelId = modelData[0] as ModelId;
                 const model = modelData[1];
+                const isHidden = hiddenModelIds.includes(modelId);
                 return (
                   <button
                     key={modelId}
-                    className="btn !h-auto !w-full !flex-col !items-start !rounded-sm !p-4"
+                    className={`btn !h-auto !w-full !flex-col !items-start !rounded-sm !p-4 ${
+                      isHidden
+                        ? "opacity-60 border-dashed border-base-content/40"
+                        : ""
+                    }`}
                     onClick={() => handleModelSelect(modelId)}
                   >
-                    <p className="font-semibold">
-                      {t(`APP.MODEL_SELECTION.MODELS.${modelId}.NAME`)}
-                    </p>
-                    <p className="mb-2 text-left font-normal leading-normal text-base-content/70">
-                      {t(`APP.MODEL_SELECTION.MODELS.${modelId}.DESCRIPTION`)}
-                    </p>
+                    <div className="flex w-full items-start justify-between gap-2">
+                      <div className="text-left">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">
+                            {t(`APP.MODEL_SELECTION.MODELS.${modelId}.NAME`)}
+                          </p>
+                          {isHidden && (
+                            <span className="badge badge-warning badge-xs">
+                              Oculto
+                            </span>
+                          )}
+                        </div>
+                        <p className="mb-2 text-left font-normal leading-normal text-base-content/70">
+                          {t(`APP.MODEL_SELECTION.MODELS.${modelId}.DESCRIPTION`)}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-base-content/70 hover:bg-base-200 hover:text-base-content"
+                        title={
+                          isHidden
+                            ? "Mostrar modelo"
+                            : "Ocultar modelo de la lista"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleHideModel(modelId);
+                        }}
+                      >
+                        {isHidden ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                     <div className="relative h-52 w-full overflow-hidden rounded-sm">
                       <div className="flex h-full w-full">
                         <img
@@ -169,15 +253,16 @@ const SelectModelDialog = () => {
                   </button>
                 );
               })}
-              {customModels.length > 0 && (
+              {visibleCustomModels.length > 0 && (
                 <p className="font-semibold text-base-content">
                   {t("APP.MODEL_SELECTION.IMPORTED_CUSTOM_MODELS")}
                 </p>
               )}
 
               {/* Modelos personalizados enriquecidos */}
-              {customModels.map((customModel) => {
+              {visibleCustomModels.map((customModel) => {
                 const isSelected = selectedModelId === customModel.id;
+                const isHidden = hiddenModelIds.includes(customModel.id);
                 return (
                   <div
                     key={customModel.id}
@@ -185,16 +270,23 @@ const SelectModelDialog = () => {
                       isSelected
                         ? "border-primary bg-primary/10"
                         : "border-border bg-base-100 hover:border-primary/50"
-                    }`}
+                    } ${isHidden ? "opacity-60 border-dashed border-base-content/40" : ""}`}
                   >
                     <div className="flex w-full items-start justify-between gap-2">
                       <div
                         className="flex-1 cursor-pointer"
                         onClick={() => handleModelSelect(customModel.id)}
                       >
-                        <p className="font-semibold text-base-content">
-                          {customModel.name}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-base-content">
+                            {customModel.name}
+                          </p>
+                          {isHidden && (
+                            <span className="badge badge-warning badge-xs">
+                              Oculto
+                            </span>
+                          )}
+                        </div>
                         {customModel.description ? (
                           <p className="mb-2 text-left font-normal leading-normal text-base-content/70">
                             {customModel.description}
@@ -205,18 +297,40 @@ const SelectModelDialog = () => {
                           </p>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-base-content/70 hover:bg-base-200 hover:text-base-content"
-                        title="Editar información del modelo"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingModel(customModel);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-base-content/70 hover:bg-base-200 hover:text-base-content"
+                          title={
+                            isHidden
+                              ? "Mostrar modelo"
+                              : "Ocultar modelo de la lista"
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHideModel(customModel.id);
+                          }}
+                        >
+                          {isHidden ? (
+                            <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-base-content/70 hover:bg-base-200 hover:text-base-content"
+                          title="Editar información del modelo"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingModel(customModel);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Previews */}
@@ -299,6 +413,14 @@ const SelectModelDialog = () => {
                   </div>
                 );
               })}
+              {visibleDefaultModels.length === 0 &&
+                visibleCustomModels.length === 0 && (
+                  <div className="py-8 text-center text-sm text-base-content/60">
+                    No hay modelos visibles.
+                    {hiddenModelIds.length > 0 &&
+                      " Pulsa en 'Ocultos' arriba para ver y restaurar tus modelos."}
+                  </div>
+                )}
             </div>
           </ScrollArea>
         </DialogContent>
